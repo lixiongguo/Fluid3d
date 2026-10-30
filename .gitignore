@@ -1,0 +1,28 @@
+# 构建产物
+build/
+**/build/
+bin/
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.exe
+
+# 运行时生成
+imgui.ini
+*.log
+
+# 系统文件
+.DS_Store
+._*
+__MACOSX/
+
+# 大体积数据
+*.ply
+*.pdf
+
+# wasm 构建中间产物
+wasm/*.wasm
+wasm/*.js
+wasm/*.data
