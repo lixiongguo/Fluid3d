@@ -56,6 +56,7 @@ void simLoop(const std::shared_ptr<SimState>& state, void (^onFrame)(void)) {
 @implementation FluidView {
     std::shared_ptr<SimState> state;
     NSTextField* status;
+    NSTextField* hints;
     BOOL loopStarted;
 }
 
@@ -72,10 +73,25 @@ void simLoop(const std::shared_ptr<SimState>& state, void (^onFrame)(void)) {
     status.stringValue = @"正在初始化 32³ 网格…";
     status.translatesAutoresizingMaskIntoConstraints = NO;
     [self addSubview:status];
+
+    // 快捷键单独一段、更淡，数据留在左边。
+    hints = [[NSTextField alloc] init];
+    hints.editable = NO;
+    hints.bezeled = NO;
+    hints.drawsBackground = NO;
+    hints.textColor = [NSColor colorWithCalibratedRed:0.45 green:0.58 blue:0.75 alpha:0.85];
+    hints.font = [NSFont monospacedSystemFontOfSize:11 weight:NSFontWeightRegular];
+    hints.stringValue = @"拖拽旋转 · 滚轮缩放 · 空格暂停 · R 重置 · 1/2/3 分辨率 · Esc 退出";
+    hints.translatesAutoresizingMaskIntoConstraints = NO;
+    [self addSubview:hints];
+
     [ResourceHud attachToView:self];
     [NSLayoutConstraint activateConstraints:@[
         [status.leadingAnchor constraintEqualToAnchor:self.leadingAnchor constant:16],
         [status.bottomAnchor constraintEqualToAnchor:self.bottomAnchor constant:-12],
+        [status.trailingAnchor constraintLessThanOrEqualToAnchor:hints.leadingAnchor constant:-12],
+        [hints.trailingAnchor constraintEqualToAnchor:self.trailingAnchor constant:-16],
+        [hints.firstBaselineAnchor constraintEqualToAnchor:status.firstBaselineAnchor],
     ]];
     return self;
 }
@@ -107,7 +123,7 @@ void simLoop(const std::shared_ptr<SimState>& state, void (^onFrame)(void)) {
     }
     if (!shot.ready) return;
     status.stringValue = [NSString stringWithFormat:
-        @"%d³    %d 粒子    第 %d 帧    %.0f ms    %@    拖拽旋转  滚轮缩放  空格暂停  R 重置  1/2/3 分辨率  Esc 退出",
+        @"%d³ · %d 粒子 · 第 %d 帧 · %.0f ms · %@",
         shot.resolution,
         (int)shot.particles.size(),
         shot.frame,
@@ -145,8 +161,23 @@ void simLoop(const std::shared_ptr<SimState>& state, void (^onFrame)(void)) {
     const float originY = (float)NSMidY(self.bounds) + 10;
 
     CGContextRef ctx = [[NSGraphicsContext currentContext] CGContext];
+
+    // 淡淡的边界球参考：液面在容器里的位置更容易读。
+    {
+        const Vec3f rel = boundaryCentre - eye;
+        const float depth = dot(rel, forward);
+        if (depth > 0.05f) {
+            const float sx = originX + dot(rel, right) / depth * focal;
+            const float sy = originY + dot(rel, up) / depth * focal;
+            const float radius = boundaryRadius / depth * focal;
+            CGContextSetStrokeColorWithColor(ctx, [[NSColor colorWithCalibratedRed:0.45 green:0.6 blue:0.82 alpha:0.32] CGColor]);
+            CGContextSetLineWidth(ctx, 1.2);
+            CGContextStrokeEllipseInRect(ctx, CGRectMake(sx - radius, sy - radius, radius * 2, radius * 2));
+        }
+    }
+
     CGContextSetFillColorWithColor(ctx, [[NSColor colorWithCalibratedRed:0.37 green:0.78 blue:1 alpha:0.9] CGColor]);
-    const float minRadius = 1.6f;
+    const float minRadius = 2.0f;
     for (const Vec3f& particle : shot.particles) {
         const Vec3f rel = particle - eye;
         const float depth = dot(rel, forward);
